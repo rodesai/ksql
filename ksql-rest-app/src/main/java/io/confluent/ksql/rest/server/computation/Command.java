@@ -16,6 +16,7 @@
 
 package io.confluent.ksql.rest.server.computation;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 
@@ -40,6 +41,7 @@ public class Command {
     this.ksqlProperties = null;
   }
 
+  @JsonAlias({"STATEMENT", "statement"})
   @JsonProperty("statement")
   public String getStatement() {
     return statement;
@@ -49,6 +51,7 @@ public class Command {
     this.statement = statement;
   }
 
+  @JsonAlias({"STREAMSPROPERTIES", "streamsProperties"})
   @JsonProperty("streamsProperties")
   public Map<String, Object> getKsqlProperties() {
     return new HashMap<>(ksqlProperties);
