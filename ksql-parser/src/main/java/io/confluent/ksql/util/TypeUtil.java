@@ -67,19 +67,22 @@ public class TypeUtil {
     return itemList;
   }
 
-
   public static Schema getTypeSchema(final Type ksqlType) {
+    return getTypeSchemaBuilder(ksqlType).build();
+  }
+
+  private static SchemaBuilder getTypeSchemaBuilder(final Type ksqlType) {
     switch (ksqlType.getKsqlType()) {
       case BOOLEAN:
-        return Schema.BOOLEAN_SCHEMA;
+        return SchemaBuilder.bool();
       case INTEGER:
-        return Schema.INT32_SCHEMA;
+        return SchemaBuilder.int32();
       case BIGINT:
-        return Schema.INT64_SCHEMA;
+        return SchemaBuilder.int64();
       case DOUBLE:
-        return Schema.FLOAT64_SCHEMA;
+        return SchemaBuilder.float64();
       case STRING:
-        return Schema.STRING_SCHEMA;
+        return SchemaBuilder.string();
       case ARRAY:
         return SchemaBuilder.array(
           getTypeSchema(((Array) ksqlType).getItemType())
@@ -88,19 +91,21 @@ public class TypeUtil {
         return SchemaBuilder.map(Schema.STRING_SCHEMA,
                                  getTypeSchema(((Map) ksqlType).getValueType()));
       case STRUCT:
-        return buildStructSchema((Struct) ksqlType);
+        return buildStructSchemaBuilder((Struct) ksqlType);
 
       default:
         throw new KsqlException("Invalid ksql type: " + ksqlType);
     }
   }
 
-  private static Schema buildStructSchema(Struct struct) {
+  private static SchemaBuilder buildStructSchemaBuilder(Struct struct) {
     SchemaBuilder strcutSchemaBuilder = SchemaBuilder.struct();
     for (Pair<String, Type> field: struct.getItems()) {
-      strcutSchemaBuilder.field(field.getLeft(), getTypeSchema(field.getRight()));
+      strcutSchemaBuilder.field(
+          field.getLeft(),
+          getTypeSchemaBuilder(field.getRight()).optional().build());
     }
-    return strcutSchemaBuilder.build();
+    return strcutSchemaBuilder;
   }
 
 

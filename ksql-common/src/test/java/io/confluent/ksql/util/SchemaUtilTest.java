@@ -42,5 +42,4 @@ public class SchemaUtilTest {
     Assert.assertTrue(mapClazz.getCanonicalName().equals("java.util.HashMap"));
 
   }
-
 }
