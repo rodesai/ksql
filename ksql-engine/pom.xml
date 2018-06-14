@@ -95,6 +95,12 @@
             <artifactId>janino</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>io.github.lukehutch</groupId>
+            <artifactId>fast-classpath-scanner</artifactId>
+            <version>2.21</version>
+        </dependency>
+
         <!-- Required for running tests -->
         <dependency>
             <groupId>org.apache.curator</groupId>
@@ -151,6 +157,12 @@
             <artifactId>hamcrest-all</artifactId>
             <version>${hamcrest.version}</version>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.confluent.avro</groupId>
+            <artifactId>avro-random-generator</artifactId>
+            <version>0.1.0</version>
         </dependency>
     </dependencies>
 
