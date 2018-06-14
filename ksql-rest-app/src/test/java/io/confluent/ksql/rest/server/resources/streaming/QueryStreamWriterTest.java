@@ -18,6 +18,7 @@ package io.confluent.ksql.rest.server.resources.streaming;
 
 import com.google.common.collect.ImmutableList;
 
+import io.confluent.ksql.util.KsqlConfig;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.streams.KafkaStreams;
@@ -103,7 +104,7 @@ public class QueryStreamWriterTest {
     expect(queryMetadata.getRowQueue()).andReturn(rowQueue).anyTimes();
     expect(queryMetadata.getResultSchema()).andReturn(schema).anyTimes();
 
-    expect(ksqlEngine.buildMultipleQueries(anyObject(), anyObject()))
+    expect(ksqlEngine.buildMultipleQueries(anyObject(), anyObject(), anyObject()))
         .andReturn(ImmutableList.of(queryMetadata));
 
     queryMetadata.setLimitHandler(capture(limitHandlerCapture));
@@ -177,6 +178,7 @@ public class QueryStreamWriterTest {
     replay(queryMetadata, ksqlEngine, rowQueue);
 
     writer = new QueryStreamWriter(
+        new KsqlConfig(Collections.emptyMap()),
         ksqlEngine,
         1000,
         "a KSQL statement",

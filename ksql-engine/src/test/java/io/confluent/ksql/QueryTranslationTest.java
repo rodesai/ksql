@@ -31,6 +31,7 @@ import org.apache.kafka.streams.TopologyTestDriver;
 import org.apache.kafka.streams.kstream.TimeWindowedDeserializer;
 import org.apache.kafka.streams.kstream.Windowed;
 import org.apache.kafka.streams.kstream.internals.TimeWindow;
+import org.apache.kafka.streams.processor.internals.DefaultKafkaClientSupplier;
 import org.apache.kafka.streams.test.ConsumerRecordFactory;
 import org.apache.kafka.streams.test.OutputVerifier;
 import org.apache.kafka.test.TestUtils;
@@ -64,14 +65,15 @@ public class QueryTranslationTest {
 
   private static final String QUERY_VALIDATION_TEST_DIR = "query-validation-tests";
   private final MetaStore metaStore = new MetaStoreImpl(new InternalFunctionRegistry());
-  private final Map<String, Object> config = new HashMap<String, Object>() {{
-    put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-    put("application.id", "KSQL-TEST");
-    put("commit.interval.ms", 0);
-    put("cache.max.bytes.buffering", 0);
-    put("auto.offset.reset", "earliest");
-    put(StreamsConfig.STATE_DIR_CONFIG, TestUtils.tempDirectory().getPath());
-  }};
+  private final KsqlConfig ksqlConfig = new KsqlConfig(
+      new HashMap<String, Object>() {{
+        put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        put("application.id", "KSQL-TEST");
+        put("commit.interval.ms", 0);
+        put("cache.max.bytes.buffering", 0);
+        put("auto.offset.reset", "earliest");
+        put(StreamsConfig.STATE_DIR_CONFIG, TestUtils.tempDirectory().getPath());
+      }});
   private final Properties streamsProperties = new Properties();
   private final ConsumerRecordFactory<String, String> recordFactory =
       new ConsumerRecordFactory<>(
@@ -84,10 +86,11 @@ public class QueryTranslationTest {
 
   @Before
   public void before() {
-    streamsProperties.putAll(config);
-    ksqlEngine = new KsqlEngine(new KsqlConfig(config),
+    streamsProperties.putAll(ksqlConfig.getKsqlStreamConfigProps());
+    ksqlEngine = new KsqlEngine(
         new FakeKafkaTopicClient(),
         new MockSchemaRegistryClient(),
+        new DefaultKafkaClientSupplier(),
         metaStore);
     ksqlEngine.getTopicClient().createTopic("test_topic", 1, (short) 1);
     ksqlEngine.getTopicClient().createTopic("test_table", 1, (short) 1);
@@ -219,8 +222,9 @@ public class QueryTranslationTest {
 
   private TopologyTestDriver buildStreamsTopology(final Query query) {
     final List<QueryMetadata> queries = ksqlEngine.buildMultipleQueries(
-        query.statements(), query.properties());
-
+        query.statements(),
+        ksqlConfig,
+        query.properties());
     return new TopologyTestDriver(queries.get(queries.size() - 1).getTopology(),
         streamsProperties,
         0);

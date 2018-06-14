@@ -21,6 +21,7 @@ import com.google.common.collect.Lists;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.confluent.ksql.util.KsqlConfig;
 import org.apache.kafka.streams.KeyValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,13 +56,15 @@ class QueryStreamWriter implements StreamingOutput {
   private volatile boolean limitReached = false;
 
   QueryStreamWriter(
-      KsqlEngine ksqlEngine,
-      long disconnectCheckInterval,
-      String queryString,
-      Map<String, Object> overriddenProperties
+      final KsqlConfig ksqlConfig,
+      final KsqlEngine ksqlEngine,
+      final long disconnectCheckInterval,
+      final String queryString,
+      final Map<String, Object> overriddenProperties
   ) throws Exception {
     QueryMetadata queryMetadata =
-        ksqlEngine.buildMultipleQueries(queryString, overriddenProperties).get(0);
+        ksqlEngine.buildMultipleQueries(
+            queryString, ksqlConfig, overriddenProperties).get(0);
     this.objectMapper = new ObjectMapper().disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
     if (!(queryMetadata instanceof QueuedQueryMetadata)) {
       throw new Exception(String.format(
