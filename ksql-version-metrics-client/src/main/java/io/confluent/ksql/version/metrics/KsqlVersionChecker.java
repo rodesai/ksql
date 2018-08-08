@@ -37,6 +37,8 @@ public class KsqlVersionChecker extends BaseMetricsReporter {
       boolean enableSettlingTime
   ) {
     super(
+        "KsqlVersionChecker",
+        true,
         ksqlVersionCheckerConfig,
         null,
         new KsqlVersionCheckerResponseHandler(),
