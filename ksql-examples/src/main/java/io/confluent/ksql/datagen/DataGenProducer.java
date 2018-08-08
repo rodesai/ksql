@@ -52,15 +52,15 @@ public abstract class DataGenProducer {
   public static final long INTER_MESSAGE_MAX_INTERVAL = 500;
 
   public void populateTopic(
-      Properties props,
-      Generator generator,
-      String kafkaTopicName,
-      String key,
-      int messageCount,
+      final Properties props,
+      final Generator generator,
+      final String kafkaTopicName,
+      final String key,
+      final int messageCount,
       long maxInterval,
-      boolean printRows,
-      TimestampGenerator timestampGenerator,
-      TokenBucket tokenBucket
+      final boolean printRows,
+      final TimestampGenerator timestampGenerator,
+      final TokenBucket tokenBucket
   ) throws InterruptedException {
     final Schema avroSchema = generator.schema();
     if (avroSchema.getField(key) == null) {
@@ -75,7 +75,7 @@ public abstract class DataGenProducer {
     org.apache.kafka.connect.data.Schema ksqlSchema = avroData.toConnectSchema(avroSchema);
     ksqlSchema = getOptionalSchema(ksqlSchema);
 
-    Serializer<GenericRow> serializer = getSerializer(avroSchema, ksqlSchema, kafkaTopicName);
+    final Serializer<GenericRow> serializer = getSerializer(avroSchema, ksqlSchema, kafkaTopicName);
 
     final KafkaProducer<String, GenericRow> producer = new KafkaProducer<>(
         props,
@@ -83,7 +83,7 @@ public abstract class DataGenProducer {
         serializer
     );
 
-    SessionManager sessionManager = new SessionManager();
+    final SessionManager sessionManager = new SessionManager();
 
     int tokens = 0;
 
@@ -122,7 +122,7 @@ public abstract class DataGenProducer {
       if (maxInterval > 0) {
         try {
           Thread.sleep((long) (maxInterval * Math.random()));
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
           // Ignore the exception.
         }
       }
@@ -154,11 +154,11 @@ public abstract class DataGenProducer {
 
     SimpleDateFormat timeformatter = null;
 
-    /**
+    /*
      * Populate the record entries
      */
     String sessionisationValue = null;
-    for (Schema.Field field : avroSchema.getFields()) {
+    for (final Schema.Field field : avroSchema.getFields()) {
 
       final boolean isSession = field.schema().getProp("session") != null;
       final boolean isSessionSiblingIntHash =
@@ -233,26 +233,24 @@ public abstract class DataGenProducer {
         System.err.println("Error when sending message to topic: '" + topic + "', with key: '"
             + keyString + "', and value: '" + valueString + "'");
         e.printStackTrace(System.err);
-      } else {
-        System.out.println(keyString + " --> (" + valueString + ") ts:" + metadata.timestamp());
       }
     }
   }
 
   private void handleSessionSiblingField(
-      GenericRecord randomAvroMessage,
-      List<Object> genericRowValues,
-      String sessionisationValue,
-      Schema.Field field
+      final GenericRecord randomAvroMessage,
+      final List<Object> genericRowValues,
+      final String sessionisationValue,
+      final Schema.Field field
   ) {
     try {
-      Schema.Type type = field.schema().getType();
+      final Schema.Type type = field.schema().getType();
       if (type == Schema.Type.INT) {
         genericRowValues.add(mapSessionValueToSibling(sessionisationValue, field));
       } else {
         genericRowValues.add(randomAvroMessage.get(field.name()));
       }
-    } catch (Exception err) {
+    } catch (final Exception err) {
       genericRowValues.add(randomAvroMessage.get(field.name()));
     }
   }
