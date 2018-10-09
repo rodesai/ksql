@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import io.confluent.connect.avro.AvroData;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
@@ -67,6 +68,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.apache.avro.Schema;
+import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -931,7 +934,19 @@ final class EndToEndEngineTestUtil {
         return recordSpec;
       case UNION:
         final int pos = GenericData.get().resolveUnion(schema, avro);
-        return avroToValueSpec(avro, schema.getTypes().get(pos), toUpper);
+        final boolean hasNull = schema.getTypes().stream()
+            .anyMatch(s -> s.getType().equals(Type.NULL));
+        final Object resolved = avroToValueSpec(avro, schema.getTypes().get(pos), toUpper);
+        if (schema.getTypes().get(pos).getType().equals(Type.NULL)
+          || schema.getTypes().size() == 2 && hasNull) {
+          return resolved;
+        }
+        final Map<String, Object> ret = Maps.newHashMap();
+        schema.getTypes().stream()
+            .forEach(
+              s -> ret.put(s.getName().toUpperCase(), null));
+        ret.put(schema.getTypes().get(pos).getName().toUpperCase(), resolved);
+        return ret;
       default:
         throw new RuntimeException("Test cannot handle data of type: " + schema.getType());
     }
