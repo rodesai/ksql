@@ -30,13 +30,6 @@
   <dependencies>
 
     <dependency>
-      <groupId>org.apache.curator</groupId>
-      <artifactId>curator-test</artifactId>
-      <version>2.9.0</version>
-      <scope>compile</scope>
-    </dependency>
-
-    <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka_${kafka.scala.version}</artifactId>
       <scope>compile</scope>

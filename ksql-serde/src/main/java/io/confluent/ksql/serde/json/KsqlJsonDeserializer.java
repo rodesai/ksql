@@ -18,6 +18,8 @@ package io.confluent.ksql.serde.json;
 
 import com.google.gson.Gson;
 import io.confluent.ksql.GenericRow;
+import io.confluent.ksql.processing.log.ProcessingLog;
+import io.confluent.ksql.processing.log.ProcessingLoggerFactory;
 import io.confluent.ksql.serde.util.SerdeUtils;
 import io.confluent.ksql.util.KsqlException;
 import io.confluent.ksql.util.SchemaUtil;
@@ -37,7 +39,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class KsqlJsonDeserializer implements Deserializer<GenericRow> {
-  private static final Logger LOG = LoggerFactory.getLogger(KsqlJsonSerializer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(KsqlJsonDeserializer.class);
+  private static final ProcessingLog PROCESSING_LOG
+      = ProcessingLoggerFactory.getLogger(KsqlJsonDeserializer.class);
 
   private final Schema schema;
   private final JsonConverter jsonConverter;
@@ -72,6 +76,7 @@ public class KsqlJsonDeserializer implements Deserializer<GenericRow> {
       }
       return row;
     } catch (final Exception e) {
+      PROCESSING_LOG.error(ProcessingLog.deserializationErrorMsg(e, bytes));
       throw new SerializationException(
           "KsqlJsonDeserializer failed to deserialize data for topic: " + topic, e);
     }
