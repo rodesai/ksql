@@ -22,7 +22,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -190,7 +190,7 @@ public class StandaloneExecutorTest {
     standaloneExecutor.start();
 
     // Then
-    verify(kafkaTopicClient, times(0))
+    verify(kafkaTopicClient, never())
         .createTopic(eq(PROCESSING_LOG_TOPIC_NAME), anyInt(), anyShort());
   }
 

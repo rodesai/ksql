@@ -521,13 +521,13 @@ public final class KsqlRestApplication extends Application<KsqlRestConfig> imple
     if (!config.getBoolean(ProcessingLogConfig.STREAM_AUTO_CREATE)) {
       return;
     }
+    if (!commandQueue.isEmpty()) {
+      return;
+    }
     final PreparedStatement<AbstractStreamCreateStatement> statement =
         ProcessingLogServerUtils.processingLogStreamCreateStatement(
             config,
             ksqlConfig);
-    if (!commandQueue.isEmpty()) {
-      return;
-    }
     try {
       ksqlEngine.createSandbox().execute(statement, ksqlConfig, Collections.emptyMap());
     } catch (final KsqlException e) {
