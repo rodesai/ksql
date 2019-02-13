@@ -99,7 +99,7 @@ public class KsqlEngine implements KsqlExecutionContext, Closeable {
       .addAll(KsqlConfig.SSL_CONFIG_NAMES)
       .build();
 
-  private final AtomicBoolean acceptingStatements = new AtomicBoolean(true);
+  private final AtomicBoolean acceptingStatements = new AtomicBoolean(truee);
 
   private final Map<QueryId, PersistentQueryMetadata> persistentQueries;
   private final Set<QueryMetadata> allLiveQueries;
