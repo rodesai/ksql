@@ -162,7 +162,7 @@ public class StreamSourceBuilderTest {
     when(kStream.mapValues(any(ValueMapperWithKey.class))).thenReturn(kStream);
     when(kStream.transformValues(any(ValueTransformerSupplier.class))).thenReturn(kStream);
     when(queryBuilder.buildKeySerde(any(), any(), any(), any())).thenReturn(keySerde);
-    when(queryBuilder.buildKeySerde(any(), any(), any())).thenReturn(keySerde);
+    when(queryBuilder.buildKeySerde(any(FormatInfo.class), any(), any())).thenReturn(keySerde);
     when(queryBuilder.buildValueSerde(any(), any(), any())).thenReturn(valueSerde);
     when(valueFormat.getFormatInfo()).thenReturn(valueFormatInfo);
     when(physicalSchemaFactory.apply(any(), any())).thenReturn(PHYSICAL_SCHEMA);

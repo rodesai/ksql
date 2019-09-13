@@ -32,6 +32,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import io.confluent.ksql.GenericRow;
+import io.confluent.ksql.execution.builder.KsqlQueryBuilder;
 import io.confluent.ksql.execution.context.QueryContext;
 import io.confluent.ksql.execution.expression.tree.DereferenceExpression;
 import io.confluent.ksql.execution.expression.tree.Expression;
@@ -138,6 +139,8 @@ public class SchemaKGroupedTableTest {
   private KsqlAggregateFunction otherFunc;
   @Mock
   private TableAggregationFunction tableFunc;
+  @Mock
+  private KsqlQueryBuilder queryBuilder;
 
   private KTable kTable;
   private KsqlTable<?> ksqlTable;
@@ -160,6 +163,9 @@ public class SchemaKGroupedTableTest {
         ksqlTable.getKsqlTopic().getKafkaTopicName(),
         Consumed.with(Serdes.String(), rowSerde)
     );
+
+    when(queryBuilder.getFunctionRegistry()).thenReturn(functionRegistry);
+    when(queryBuilder.getKsqlConfig()).thenReturn(ksqlConfig);
 
     when(aggregateSchema.findValueColumn("GROUPING_COLUMN"))
         .thenReturn(Optional.of(Column.of("GROUPING_COLUMN", SqlTypes.STRING)));
@@ -210,7 +216,7 @@ public class SchemaKGroupedTableTest {
     );
 
     final SchemaKGroupedStream groupedSchemaKTable = initialSchemaKTable.groupBy(
-        valueFormat, rowSerde, groupByExpressions, queryContext);
+        valueFormat, groupByExpressions, queryContext, queryBuilder);
     Assert.assertThat(groupedSchemaKTable, instanceOf(SchemaKGroupedTable.class));
     return (SchemaKGroupedTable)groupedSchemaKTable;
   }

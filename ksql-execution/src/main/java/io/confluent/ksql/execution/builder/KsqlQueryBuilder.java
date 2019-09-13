@@ -29,6 +29,7 @@ import io.confluent.ksql.schema.ksql.PhysicalSchema;
 import io.confluent.ksql.serde.FormatInfo;
 import io.confluent.ksql.serde.GenericKeySerDe;
 import io.confluent.ksql.serde.GenericRowSerDe;
+import io.confluent.ksql.serde.KeyFormat;
 import io.confluent.ksql.serde.KeySerde;
 import io.confluent.ksql.serde.KeySerdeFactory;
 import io.confluent.ksql.serde.ValueSerdeFactory;
@@ -150,6 +151,28 @@ public final class KsqlQueryBuilder {
         loggerNamePrefix,
         processingLogContext
     );
+  }
+
+  @SuppressWarnings("unchecked")
+  public KeySerde<Object> buildKeySerde(
+      final KeyFormat keyFormat,
+      final PhysicalSchema physicalSchema,
+      final QueryContext queryContext
+  ) {
+    if (keyFormat.isWindowed()) {
+      return (KeySerde) buildKeySerde(
+          keyFormat.getFormatInfo(),
+          keyFormat.getWindowInfo().get(),
+          physicalSchema,
+          queryContext
+      );
+    } else {
+      return (KeySerde) buildKeySerde(
+          keyFormat.getFormatInfo(),
+          physicalSchema,
+          queryContext
+      );
+    }
   }
 
   public KeySerde<Windowed<Struct>> buildKeySerde(

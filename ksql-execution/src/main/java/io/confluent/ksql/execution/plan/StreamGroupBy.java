@@ -53,6 +53,10 @@ public class StreamGroupBy<S, G> implements ExecutionStep<G> {
     return Collections.singletonList(source);
   }
 
+  public Formats getFormats() {
+    return formats;
+  }
+
   @Override
   public G build(final KsqlQueryBuilder streamsBuilder) {
     throw new UnsupportedOperationException();

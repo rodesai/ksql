@@ -13,7 +13,7 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package io.confluent.ksql.structured;
+package io.confluent.ksql.execution.streams;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -21,10 +21,7 @@ import static org.hamcrest.Matchers.is;
 import com.google.common.collect.ImmutableList;
 import io.confluent.ksql.GenericRow;
 import io.confluent.ksql.execution.codegen.ExpressionMetadata;
-import io.confluent.ksql.execution.expression.tree.DereferenceExpression;
-import io.confluent.ksql.execution.expression.tree.Expression;
-import io.confluent.ksql.execution.expression.tree.QualifiedName;
-import io.confluent.ksql.execution.expression.tree.QualifiedNameReference;
+import io.confluent.ksql.execution.util.StructKeyUtil;
 import java.util.Collections;
 import org.apache.kafka.connect.data.Struct;
 import org.easymock.EasyMock;
@@ -72,7 +69,7 @@ public class GroupByMapperTest {
     EasyMock.replay(groupBy0, groupBy1);
 
     // When:
-    final Struct result = mapper.apply("key", row);
+    final Struct result = (Struct) mapper.apply("key", row);
 
     // Then:
     assertThat(result, is(StructKeyUtil.asStructKey("result0|+|result1")));
@@ -86,7 +83,7 @@ public class GroupByMapperTest {
     EasyMock.replay(groupBy0, groupBy1);
 
     // When:
-    final Struct result = mapper.apply("key", row);
+    final Struct result = (Struct) mapper.apply("key", row);
 
     // Then:
     assertThat(result, is(StructKeyUtil.asStructKey("null|+|result1")));
@@ -100,24 +97,9 @@ public class GroupByMapperTest {
     EasyMock.replay(groupBy0, groupBy1);
 
     // When:
-    final Struct result = mapper.apply("key", row);
+    final Struct result = (Struct) mapper.apply("key", row);
 
     // Then:
     assertThat(result, is(StructKeyUtil.asStructKey("null|+|result1")));
-  }
-
-  @Test
-  public void shouldGetKeyName() {
-    // Given:
-    final Expression exp0 = new DereferenceExpression(
-        new QualifiedNameReference(QualifiedName.of("Fred")), "f1");
-    final Expression exp1 = new DereferenceExpression(
-        new QualifiedNameReference(QualifiedName.of("Bob")), "b1");
-
-    // When:
-    final String result = GroupByMapper.keyNameFor(ImmutableList.of(exp0, exp1));
-
-    // Then:
-    assertThat(result, is("Fred.f1|+|Bob.b1"));
   }
 }

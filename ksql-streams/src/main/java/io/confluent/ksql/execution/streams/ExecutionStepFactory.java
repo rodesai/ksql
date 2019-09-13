@@ -28,6 +28,7 @@ import io.confluent.ksql.execution.plan.SelectExpression;
 import io.confluent.ksql.execution.plan.StreamAggregate;
 import io.confluent.ksql.execution.plan.StreamFilter;
 import io.confluent.ksql.execution.plan.StreamGroupBy;
+import io.confluent.ksql.execution.plan.StreamGroupByKey;
 import io.confluent.ksql.execution.plan.StreamMapValues;
 import io.confluent.ksql.execution.plan.StreamSelectKey;
 import io.confluent.ksql.execution.plan.StreamSink;
@@ -332,6 +333,20 @@ public final class ExecutionStepFactory {
         sourceStep,
         format,
         groupingExpressions
+    );
+  }
+
+  public static <K> StreamGroupByKey<KStream<K, GenericRow>, KGroupedStream<Struct, GenericRow>>
+      streamGroupByKey(
+          final QueryContext.Stacker stacker,
+          final ExecutionStep<KStream<K, GenericRow>> sourceStep,
+          final Formats formats
+  ) {
+    final QueryContext queryContext = stacker.getQueryContext();
+    return new StreamGroupByKey<>(
+        sourceStep.getProperties().withQueryContext(queryContext),
+        sourceStep,
+        formats
     );
   }
 

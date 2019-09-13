@@ -52,6 +52,7 @@ import io.confluent.ksql.query.QueryId;
 import io.confluent.ksql.schema.ksql.Column;
 import io.confluent.ksql.schema.ksql.PersistenceSchema;
 import io.confluent.ksql.schema.ksql.types.SqlTypes;
+import io.confluent.ksql.serde.FormatInfo;
 import io.confluent.ksql.serde.KeySerde;
 import io.confluent.ksql.serde.WindowInfo;
 import io.confluent.ksql.structured.SchemaKStream;
@@ -401,7 +402,7 @@ public class AggregateNodeTest {
     when(ksqlStreamBuilder.buildNodeContext(any())).thenAnswer(inv ->
         new QueryContext.Stacker(queryId)
             .push(inv.getArgument(0).toString()));
-    when(ksqlStreamBuilder.buildKeySerde(any(), any(), any())).thenReturn(keySerde);
+    when(ksqlStreamBuilder.buildKeySerde(any(FormatInfo.class), any(), any())).thenReturn(keySerde);
 
     return aggregateNode.buildStream(ksqlStreamBuilder);
   }

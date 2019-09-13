@@ -54,9 +54,8 @@ public final class StreamToTableBuilder {
         queryContext
     );
     final KeyFormat keyFormat = streamToTable.getFormats().getKeyFormat();
-    final KeySerde<Object> keySerde = buildKeySerde(
+    final KeySerde<Object> keySerde = queryBuilder.buildKeySerde(
         keyFormat,
-        queryBuilder,
         physicalSchema,
         queryContext
     );
@@ -83,28 +82,5 @@ public final class StreamToTableBuilder {
             () -> null,
             (k, value, oldValue) -> value.orElse(null),
             materialized);
-  }
-
-  @SuppressWarnings("unchecked")
-  private static KeySerde<Object> buildKeySerde(
-      final KeyFormat keyFormat,
-      final KsqlQueryBuilder queryBuilder,
-      final PhysicalSchema physicalSchema,
-      final QueryContext queryContext
-  ) {
-    if (keyFormat.isWindowed()) {
-      return (KeySerde) queryBuilder.buildKeySerde(
-          keyFormat.getFormatInfo(),
-          keyFormat.getWindowInfo().get(),
-          physicalSchema,
-          queryContext
-      );
-    } else {
-      return (KeySerde) queryBuilder.buildKeySerde(
-          keyFormat.getFormatInfo(),
-          physicalSchema,
-          queryContext
-      );
-    }
   }
 }

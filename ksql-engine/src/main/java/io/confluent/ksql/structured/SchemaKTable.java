@@ -25,10 +25,12 @@ import io.confluent.ksql.execution.plan.ExecutionStep;
 import io.confluent.ksql.execution.plan.Formats;
 import io.confluent.ksql.execution.plan.JoinType;
 import io.confluent.ksql.execution.plan.SelectExpression;
+import io.confluent.ksql.execution.plan.TableGroupBy;
 import io.confluent.ksql.execution.plan.TableMapValues;
 import io.confluent.ksql.execution.streams.ExecutionStepFactory;
-import io.confluent.ksql.execution.streams.StreamsUtil;
+import io.confluent.ksql.execution.streams.TableGroupByBuilder;
 import io.confluent.ksql.execution.streams.TableMapValuesBuilder;
+import io.confluent.ksql.execution.util.StructKeyUtil;
 import io.confluent.ksql.function.FunctionRegistry;
 import io.confluent.ksql.logging.processing.ProcessingLogContext;
 import io.confluent.ksql.metastore.model.KeyField;
@@ -50,8 +52,6 @@ import java.util.Optional;
 import java.util.Set;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.connect.data.Struct;
-import org.apache.kafka.streams.KeyValue;
-import org.apache.kafka.streams.kstream.Grouped;
 import org.apache.kafka.streams.kstream.KGroupedTable;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
@@ -241,40 +241,25 @@ public class SchemaKTable<K> extends SchemaKStream<K> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public SchemaKGroupedStream groupBy(
       final ValueFormat valueFormat,
-      final Serde<GenericRow> valSerde,
       final List<Expression> groupByExpressions,
-      final QueryContext.Stacker contextStacker
+      final QueryContext.Stacker contextStacker,
+      final KsqlQueryBuilder queryBuilder
   ) {
 
-    final GroupBy groupBy = new GroupBy(groupByExpressions);
     final KeyFormat groupedKeyFormat = KeyFormat.nonWindowed(keyFormat.getFormatInfo());
 
     final KeySerde<Struct> groupedKeySerde = keySerde
         .rebind(StructKeyUtil.ROWKEY_SERIALIZED_SCHEMA);
 
-    final Grouped<Struct, GenericRow> grouped = streamsFactories.getGroupedFactory()
-        .create(
-            StreamsUtil.buildOpName(contextStacker.getQueryContext()),
-            groupedKeySerde,
-            valSerde
-        );
+    final String aggregateKeyName = groupedKeyNameFor(groupByExpressions);
+    final LegacyField legacyKeyField = LegacyField.notInSchema(aggregateKeyName, SqlTypes.STRING);
+    final Optional<String> newKeyField =
+        getSchema().findValueColumn(aggregateKeyName).map(Column::fullName);
 
-    final KGroupedTable kgroupedTable = ktable
-        .filter((key, value) -> value != null)
-        .groupBy(
-            (key, value) -> new KeyValue<>(groupBy.mapper.apply(key, value), value),
-            grouped
-        );
-
-    final LegacyField legacyKeyField = LegacyField
-        .notInSchema(groupBy.aggregateKeyName, SqlTypes.STRING);
-
-    final Optional<String> newKeyField = getSchema().findValueColumn(groupBy.aggregateKeyName)
-        .map(Column::fullName);
-
-    final ExecutionStep<KGroupedTable<Struct, GenericRow>> step =
+    final TableGroupBy<KTable<K, GenericRow>, KGroupedTable<Struct, GenericRow>> step =
         ExecutionStepFactory.tableGroupBy(
             contextStacker,
             sourceTableStep,
@@ -282,7 +267,12 @@ public class SchemaKTable<K> extends SchemaKStream<K> {
             groupByExpressions
         );
     return new SchemaKGroupedTable(
-        kgroupedTable,
+        TableGroupByBuilder.build(
+            (KTable<Object, GenericRow>) ktable,
+            step,
+            queryBuilder,
+            streamsFactories.getGroupedFactory()
+        ),
         step,
         groupedKeyFormat,
         groupedKeySerde,

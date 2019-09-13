@@ -16,28 +16,23 @@ package io.confluent.ksql.execution.plan;
 
 import com.google.errorprone.annotations.Immutable;
 import io.confluent.ksql.execution.builder.KsqlQueryBuilder;
-import io.confluent.ksql.execution.expression.tree.Expression;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 @Immutable
-public class TableGroupBy<T, G> implements ExecutionStep<G> {
+public class StreamGroupByKey<S, G> implements ExecutionStep<G> {
   private final ExecutionStepProperties properties;
-  private final ExecutionStep<T> source;
+  private final ExecutionStep<S> source;
   private final Formats formats;
-  private final List<Expression> groupByExpressions;
 
-  public TableGroupBy(
+  public StreamGroupByKey(
       final ExecutionStepProperties properties,
-      final ExecutionStep<T> source,
-      final Formats formats,
-      final List<Expression> groupByExpressions
-  ) {
+      final ExecutionStep<S> source,
+      final Formats formats) {
     this.properties = Objects.requireNonNull(properties, "properties");
-    this.source = Objects.requireNonNull(source, "source");
     this.formats = Objects.requireNonNull(formats, "formats");
-    this.groupByExpressions = Objects.requireNonNull(groupByExpressions, "groupByExpressions");
+    this.source = Objects.requireNonNull(source, "source");
   }
 
   @Override
@@ -50,16 +45,16 @@ public class TableGroupBy<T, G> implements ExecutionStep<G> {
     return Collections.singletonList(source);
   }
 
+  public ExecutionStep<S> getSource() {
+    return source;
+  }
+
   public Formats getFormats() {
     return formats;
   }
 
-  public List<Expression> getGroupByExpressions() {
-    return groupByExpressions;
-  }
-
   @Override
-  public G build(final KsqlQueryBuilder builder) {
+  public G build(final KsqlQueryBuilder streamsBuilder) {
     throw new UnsupportedOperationException();
   }
 
@@ -71,16 +66,15 @@ public class TableGroupBy<T, G> implements ExecutionStep<G> {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    final TableGroupBy<?, ?> that = (TableGroupBy<?, ?>) o;
+    final StreamGroupByKey<?, ?> that = (StreamGroupByKey<?, ?>) o;
     return Objects.equals(properties, that.properties)
         && Objects.equals(source, that.source)
-        && Objects.equals(formats, that.formats)
-        && Objects.equals(groupByExpressions, that.groupByExpressions);
+        && Objects.equals(formats, that.formats);
   }
 
   @Override
   public int hashCode() {
 
-    return Objects.hash(properties, source, formats, groupByExpressions);
+    return Objects.hash(properties, source, formats);
   }
 }

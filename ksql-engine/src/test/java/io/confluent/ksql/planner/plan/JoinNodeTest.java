@@ -188,7 +188,8 @@ public class JoinNodeTest {
     when(ksqlStreamBuilder.buildNodeContext(any())).thenAnswer(inv ->
         new QueryContext.Stacker(queryId)
             .push(inv.getArgument(0).toString()));
-    when(ksqlStreamBuilder.buildKeySerde(any(), any(), any())).thenReturn(keySerde);
+    when(ksqlStreamBuilder.buildKeySerde(any(FormatInfo.class), any(), any()))
+        .thenReturn(keySerde);
 
     when(keySerde.rebind(any(PersistenceSchema.class))).thenReturn(reboundKeySerde);
 

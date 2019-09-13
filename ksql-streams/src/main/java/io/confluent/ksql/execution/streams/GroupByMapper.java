@@ -13,22 +13,21 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package io.confluent.ksql.structured;
+package io.confluent.ksql.execution.streams;
 
 import com.google.common.collect.ImmutableList;
 import io.confluent.ksql.GenericRow;
 import io.confluent.ksql.execution.codegen.ExpressionMetadata;
-import io.confluent.ksql.execution.expression.tree.Expression;
+import io.confluent.ksql.execution.util.StructKeyUtil;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.streams.kstream.KeyValueMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class GroupByMapper implements KeyValueMapper<Object, GenericRow, Struct> {
+class GroupByMapper implements KeyValueMapper<Object, GenericRow, Object> {
 
   private static final Logger LOG = LoggerFactory.getLogger(GroupByMapper.class);
 
@@ -44,18 +43,12 @@ class GroupByMapper implements KeyValueMapper<Object, GenericRow, Struct> {
   }
 
   @Override
-  public Struct apply(final Object key, final GenericRow row) {
+  public Object apply(final Object key, final GenericRow row) {
     final String stringRowKey = IntStream.range(0, expressions.size())
         .mapToObj(idx -> processColumn(idx, expressions.get(idx), row))
         .collect(Collectors.joining(GROUP_BY_COLUMN_SEPARATOR));
 
     return StructKeyUtil.asStructKey(stringRowKey);
-  }
-
-  static String keyNameFor(final List<Expression> groupByExpressions) {
-    return groupByExpressions.stream()
-        .map(Expression::toString)
-        .collect(Collectors.joining(GROUP_BY_COLUMN_SEPARATOR));
   }
 
   private static String processColumn(
@@ -69,5 +62,9 @@ class GroupByMapper implements KeyValueMapper<Object, GenericRow, Struct> {
       LOG.error("Error calculating group-by field with index {}", index, e);
       return "null";
     }
+  }
+
+  List<ExpressionMetadata> getExpressionMetadata() {
+    return expressions;
   }
 }

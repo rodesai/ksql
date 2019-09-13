@@ -23,8 +23,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.confluent.ksql.GenericRow;
 import io.confluent.ksql.execution.builder.KsqlQueryBuilder;
-import io.confluent.ksql.execution.codegen.CodeGenRunner;
-import io.confluent.ksql.execution.codegen.ExpressionMetadata;
 import io.confluent.ksql.execution.context.QueryContext;
 import io.confluent.ksql.execution.context.QueryLoggerUtil;
 import io.confluent.ksql.execution.ddl.commands.KsqlTopic;
@@ -37,14 +35,18 @@ import io.confluent.ksql.execution.plan.Formats;
 import io.confluent.ksql.execution.plan.JoinType;
 import io.confluent.ksql.execution.plan.LogicalSchemaWithMetaAndKeyFields;
 import io.confluent.ksql.execution.plan.SelectExpression;
+import io.confluent.ksql.execution.plan.StreamGroupBy;
+import io.confluent.ksql.execution.plan.StreamGroupByKey;
 import io.confluent.ksql.execution.plan.StreamMapValues;
 import io.confluent.ksql.execution.plan.StreamSource;
 import io.confluent.ksql.execution.plan.StreamToTable;
 import io.confluent.ksql.execution.streams.ExecutionStepFactory;
+import io.confluent.ksql.execution.streams.StreamGroupByBuilder;
 import io.confluent.ksql.execution.streams.StreamMapValuesBuilder;
 import io.confluent.ksql.execution.streams.StreamSourceBuilder;
 import io.confluent.ksql.execution.streams.StreamToTableBuilder;
 import io.confluent.ksql.execution.streams.StreamsUtil;
+import io.confluent.ksql.execution.util.StructKeyUtil;
 import io.confluent.ksql.function.FunctionRegistry;
 import io.confluent.ksql.logging.processing.ProcessingLogContext;
 import io.confluent.ksql.metastore.model.DataSource;
@@ -68,10 +70,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.streams.Topology.AutoOffsetReset;
-import org.apache.kafka.streams.kstream.Grouped;
 import org.apache.kafka.streams.kstream.JoinWindows;
 import org.apache.kafka.streams.kstream.KGroupedStream;
 import org.apache.kafka.streams.kstream.KStream;
@@ -87,6 +89,8 @@ public class SchemaKStream<K> {
 
   private static final FormatOptions FORMAT_OPTIONS =
       FormatOptions.of(IdentifierUtil::needsQuotes);
+
+  static final String GROUP_BY_COLUMN_SEPARATOR = "|+|";
 
   public enum Type { SOURCE, PROJECT, FILTER, AGGREGATE, SINK, REKEY, JOIN }
 
@@ -809,36 +813,30 @@ public class SchemaKStream<K> {
   @SuppressWarnings("unchecked")
   public SchemaKGroupedStream groupBy(
       final ValueFormat valueFormat,
-      final Serde<GenericRow> valSerde,
       final List<Expression> groupByExpressions,
-      final QueryContext.Stacker contextStacker
+      final QueryContext.Stacker contextStacker,
+      final KsqlQueryBuilder queryBuilder
   ) {
     final boolean rekey = rekeyRequired(groupByExpressions);
     final KeyFormat rekeyedKeyFormat = KeyFormat.nonWindowed(keyFormat.getFormatInfo());
     if (!rekey) {
-      final Grouped<K, GenericRow> grouped = streamsFactories.getGroupedFactory()
-          .create(
-              StreamsUtil.buildOpName(contextStacker.getQueryContext()),
-              keySerde,
-              valSerde
-          );
-
-      final KGroupedStream kgroupedStream = kstream.groupByKey(grouped);
-
       if (keySerde.isWindowed()) {
         throw new UnsupportedOperationException("Group by on windowed should always require rekey");
       }
-
       final KeySerde<Struct> structKeySerde = (KeySerde) keySerde;
-      final ExecutionStep<KGroupedStream<Struct, GenericRow>> step =
-          ExecutionStepFactory.streamGroupBy(
+      final StreamGroupByKey<KStream<K, GenericRow>, KGroupedStream<Struct, GenericRow>> step =
+          ExecutionStepFactory.streamGroupByKey(
               contextStacker,
               sourceStep,
-              Formats.of(rekeyedKeyFormat, valueFormat, SerdeOption.none()),
-              groupByExpressions
+              Formats.of(rekeyedKeyFormat, valueFormat, SerdeOption.none())
           );
       return new SchemaKGroupedStream(
-          kgroupedStream,
+          StreamGroupByBuilder.build(
+              (KStream<Object, GenericRow>) kstream,
+              step,
+              queryBuilder,
+              streamsFactories.getGroupedFactory()
+          ),
           step,
           keyFormat,
           structKeySerde,
@@ -849,28 +847,16 @@ public class SchemaKStream<K> {
       );
     }
 
-    final GroupBy groupBy = new GroupBy(groupByExpressions);
-
     final KeySerde<Struct> groupedKeySerde = keySerde
         .rebind(StructKeyUtil.ROWKEY_SERIALIZED_SCHEMA);
 
-    final Grouped<Struct, GenericRow> grouped = streamsFactories.getGroupedFactory()
-        .create(
-            StreamsUtil.buildOpName(contextStacker.getQueryContext()),
-            groupedKeySerde,
-            valSerde
-        );
-
-    final KGroupedStream kgroupedStream = kstream
-        .filter((key, value) -> value != null)
-        .groupBy(groupBy.mapper, grouped);
-
+    final String aggregateKeyName = groupedKeyNameFor(groupByExpressions);
     final LegacyField legacyKeyField = LegacyField
-        .notInSchema(groupBy.aggregateKeyName, SqlTypes.STRING);
-
-    final Optional<String> newKeyCol = getSchema().findValueColumn(groupBy.aggregateKeyName)
+        .notInSchema(aggregateKeyName, SqlTypes.STRING);
+    final Optional<String> newKeyCol = getSchema().findValueColumn(aggregateKeyName)
         .map(Column::name);
-    final ExecutionStep<KGroupedStream<Struct, GenericRow>> source =
+
+    final StreamGroupBy<KStream<K, GenericRow>, KGroupedStream<Struct, GenericRow>> source =
         ExecutionStepFactory.streamGroupBy(
             contextStacker,
             sourceStep,
@@ -878,7 +864,12 @@ public class SchemaKStream<K> {
             groupByExpressions
         );
     return new SchemaKGroupedStream(
-        kgroupedStream,
+        StreamGroupByBuilder.build(
+            (KStream<Object, GenericRow>) kstream,
+            source,
+            queryBuilder,
+            streamsFactories.getGroupedFactory()
+        ),
         source,
         rekeyedKeyFormat,
         groupedKeySerde,
@@ -946,18 +937,10 @@ public class SchemaKStream<K> {
     return functionRegistry;
   }
 
-  class GroupBy {
-
-    final String aggregateKeyName;
-    final GroupByMapper mapper;
-
-    GroupBy(final List<Expression> expressions) {
-      final List<ExpressionMetadata> groupBy = CodeGenRunner.compileExpressions(
-          expressions.stream(), "Group By", getSchema(), ksqlConfig, functionRegistry);
-
-      this.mapper = new GroupByMapper(groupBy);
-      this.aggregateKeyName = GroupByMapper.keyNameFor(expressions);
-    }
+  String groupedKeyNameFor(final List<Expression> groupByExpressions) {
+    return groupByExpressions.stream()
+        .map(Expression::toString)
+        .collect(Collectors.joining(GROUP_BY_COLUMN_SEPARATOR));
   }
 
   protected static class KsqlValueJoiner

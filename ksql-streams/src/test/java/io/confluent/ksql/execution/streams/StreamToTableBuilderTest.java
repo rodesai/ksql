@@ -143,7 +143,7 @@ public class StreamToTableBuilderTest {
         Formats.of(keyFormat, valueFormat, SerdeOption.none()),
         new DefaultExecutionStepProperties(SCHEMA, queryContext)
     );
-    when(ksqlQueryBuilder.buildKeySerde(any(), any(), any())).thenReturn(keySerde);
+    when(ksqlQueryBuilder.buildKeySerde(any(FormatInfo.class), any(), any())).thenReturn(keySerde);
   }
 
   @Test
