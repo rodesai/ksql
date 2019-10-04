@@ -18,6 +18,7 @@ package io.confluent.ksql.rest.server.computation;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import io.confluent.ksql.engine.KsqlEngine;
+import io.confluent.ksql.engine.KsqlPlan;
 import io.confluent.ksql.exception.ExceptionUtil;
 import io.confluent.ksql.metastore.MetaStore;
 import io.confluent.ksql.name.SourceName;
@@ -29,6 +30,7 @@ import io.confluent.ksql.parser.tree.ExecutableDdlStatement;
 import io.confluent.ksql.parser.tree.InsertInto;
 import io.confluent.ksql.parser.tree.RunScript;
 import io.confluent.ksql.parser.tree.TerminateQuery;
+import io.confluent.ksql.planner.plan.ConfiguredKsqlPlan;
 import io.confluent.ksql.query.QueryId;
 import io.confluent.ksql.query.id.HybridQueryIdGenerator;
 import io.confluent.ksql.rest.entity.CommandId;
@@ -262,8 +264,9 @@ public class StatementExecutor implements KsqlConfigurable {
     final ConfiguredStatement<?> configured =
         ConfiguredStatement.of(statement, command.getOverwriteProperties(), mergedConfig);
 
+    final KsqlPlan plan = ksqlEngine.plan(configured);
     return ksqlEngine
-        .execute(configured)
+        .execute(ConfiguredKsqlPlan.of(plan, command.getOverwriteProperties(), mergedConfig))
         .getCommandResult()
         .get();
   }
@@ -334,9 +337,12 @@ public class StatementExecutor implements KsqlConfigurable {
       queryIdGenerator.activateNewGenerator(offset);
     }
 
-    final QueryMetadata queryMetadata = ksqlEngine.execute(configured)
-        .getQuery()
-        .orElseThrow(() -> new IllegalStateException("Statement did not return a query"));
+    final KsqlPlan plan = ksqlEngine.plan(configured);
+    final QueryMetadata queryMetadata =
+        ksqlEngine
+            .execute(ConfiguredKsqlPlan.of(plan, command.getOverwriteProperties(), mergedConfig))
+            .getQuery()
+            .orElseThrow(() -> new IllegalStateException("Statement did not return a query"));
 
     if (!(queryMetadata instanceof PersistentQueryMetadata)) {
       throw new KsqlException(String.format(

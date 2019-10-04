@@ -127,7 +127,8 @@ public class KsqlContextTest {
     when(ksqlEngine.prepare(PARSED_STMT_0)).thenReturn((PreparedStatement) PREPARED_STMT_0);
     when(ksqlEngine.prepare(PARSED_STMT_1)).thenReturn((PreparedStatement) PREPARED_STMT_1);
 
-    when(ksqlEngine.execute(any())).thenReturn(ExecuteResult.of("success"));
+    when(ksqlEngine.execute(any(ConfiguredStatement.class)))
+        .thenReturn(ExecuteResult.of("success"));
 
     when(ksqlEngine.createSandbox(any())).thenReturn(sandbox);
 
@@ -206,7 +207,7 @@ public class KsqlContextTest {
   @Test
   public void shouldThrowIfSandboxExecuteThrows() {
     // Given:
-    when(sandbox.execute(any()))
+    when(sandbox.execute(any(ConfiguredStatement.class)))
         .thenThrow(new KsqlException("Bad tings happen"));
 
     // Expect
@@ -220,7 +221,7 @@ public class KsqlContextTest {
   @Test
   public void shouldThrowIfExecuteThrows() {
     // Given:
-    when(ksqlEngine.execute(any()))
+    when(ksqlEngine.execute(any(ConfiguredStatement.class)))
         .thenThrow(new KsqlException("Bad tings happen"));
 
     // Expect
@@ -234,7 +235,7 @@ public class KsqlContextTest {
   @Test
   public void shouldNotExecuteAnyStatementsIfTryExecuteThrows() {
     // Given:
-    when(sandbox.execute(any()))
+    when(sandbox.execute(any(ConfiguredStatement.class)))
         .thenThrow(new KsqlException("Bad tings happen"));
 
     // When:
@@ -245,13 +246,13 @@ public class KsqlContextTest {
     }
 
     // Then:
-    verify(ksqlEngine, never()).execute(any());
+    verify(ksqlEngine, never()).execute(any(ConfiguredStatement.class));
   }
 
   @Test
   public void shouldStartPersistentQueries() {
     // Given:
-    when(ksqlEngine.execute(any()))
+    when(ksqlEngine.execute(any(ConfiguredStatement.class)))
         .thenReturn(ExecuteResult.of(persistentQuery));
 
     // When:
@@ -264,7 +265,7 @@ public class KsqlContextTest {
   @Test
   public void shouldNotBlowUpOnSqlThatDoesNotResultInPersistentQueries() {
     // Given:
-    when(ksqlEngine.execute(any()))
+    when(ksqlEngine.execute(any(ConfiguredStatement.class)))
         .thenReturn(ExecuteResult.of(transientQuery));
 
     // When:

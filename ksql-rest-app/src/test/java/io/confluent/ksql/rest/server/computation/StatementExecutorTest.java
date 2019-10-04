@@ -38,6 +38,7 @@ import io.confluent.ksql.KsqlConfigTestUtil;
 import io.confluent.ksql.KsqlExecutionContext.ExecuteResult;
 import io.confluent.ksql.engine.KsqlEngine;
 import io.confluent.ksql.engine.KsqlEngineTestUtil;
+import io.confluent.ksql.engine.KsqlPlan;
 import io.confluent.ksql.function.InternalFunctionRegistry;
 import io.confluent.ksql.integration.Retry;
 import io.confluent.ksql.internal.KsqlEngineMetrics;
@@ -54,6 +55,7 @@ import io.confluent.ksql.parser.tree.DropStream;
 import io.confluent.ksql.parser.tree.Query;
 import io.confluent.ksql.parser.tree.RunScript;
 import io.confluent.ksql.parser.tree.Statement;
+import io.confluent.ksql.planner.plan.ConfiguredKsqlPlan;
 import io.confluent.ksql.query.QueryId;
 import io.confluent.ksql.query.id.HybridQueryIdGenerator;
 import io.confluent.ksql.rest.entity.CommandId;
@@ -83,6 +85,9 @@ import org.easymock.EasyMockSupport;
 import org.easymock.IArgumentMatcher;
 import org.easymock.Mock;
 import org.hamcrest.CoreMatchers;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 import org.hamcrest.integration.EasyMock2Adapter;
 import org.junit.After;
 import org.junit.Assert;
@@ -92,6 +97,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.RuleChain;
+import org.mockito.Mockito;
 
 public class StatementExecutorTest extends EasyMockSupport {
 
@@ -254,7 +260,9 @@ public class StatementExecutorTest extends EasyMockSupport {
 
     expect(mockParser.parseSingleStatement(statementText)).andReturn(csasStatement);
     expect(mockEngine.getPersistentQueries()).andReturn(ImmutableList.of());
-    expect(mockEngine.execute(eq(configuredCsas)))
+    final KsqlPlan plan = Mockito.mock(KsqlPlan.class);
+    expect(mockEngine.plan(eq(configuredCsas))).andReturn(plan);
+    expect(mockEngine.execute(eqConfigured(plan)))
         .andReturn(ExecuteResult.of(mockQueryMetadata));
     mockQueryMetadata.start();
     expectLastCall();
@@ -454,6 +462,7 @@ public class StatementExecutorTest extends EasyMockSupport {
       final String name,
       final QueryId queryId) {
     final CreateStreamAsSelect mockCSAS = mockCSAS(name);
+    final KsqlPlan mockPlan = Mockito.mock(KsqlPlan.class);
     final PersistentQueryMetadata mockQuery = mock(PersistentQueryMetadata.class);
     expect(mockQuery.getQueryId()).andStubReturn(queryId);
     final PreparedStatement<Statement> csas = PreparedStatement.of("CSAS", mockCSAS);
@@ -461,7 +470,9 @@ public class StatementExecutorTest extends EasyMockSupport {
         .andReturn(csas);
     expect(mockMetaStore.getSource(SourceName.of(name))).andStubReturn(null);
     expect(mockEngine.getPersistentQueries()).andReturn(ImmutableList.of());
-    expect(mockEngine.execute(eqConfigured(csas)))
+    expect(mockEngine.plan(eqConfigured(csas)))
+        .andReturn(mockPlan);
+    expect(mockEngine.execute(eqConfigured(mockPlan)))
         .andReturn(ExecuteResult.of(mockQuery));
     return mockQuery;
   }
@@ -527,9 +538,10 @@ public class StatementExecutorTest extends EasyMockSupport {
     mockQueryMetadata.close();
     expectLastCall();
 
-    expect(mockEngine
-        .execute(eqConfigured(PreparedStatement.of("DROP", mockDropStream))))
-        .andReturn(ExecuteResult.of("SUCCESS"));
+    final KsqlPlan plan = Mockito.mock(KsqlPlan.class);
+    expect(mockEngine.plan(eqConfigured(PreparedStatement.of("DROP", mockDropStream))))
+        .andReturn(plan);
+    expect(mockEngine.execute(eqConfigured(plan))).andReturn(ExecuteResult.of("SUCCESS"));
     replayAll();
 
     // When:
@@ -544,6 +556,25 @@ public class StatementExecutorTest extends EasyMockSupport {
 
     // Then:
     verify(mockParser, mockEngine, mockMetaStore);
+  }
+
+  public static Matcher<ConfiguredKsqlPlan> configuredPlan(final Matcher<KsqlPlan> plan) {
+    return new TypeSafeMatcher<ConfiguredKsqlPlan>() {
+      @Override
+      protected boolean matchesSafely(final ConfiguredKsqlPlan item) {
+        return plan.matches(item.getPlan());
+      }
+
+      @Override
+      public void describeTo(final Description description) {
+        plan.describeTo(description);
+      }
+    };
+  }
+
+  private static ConfiguredKsqlPlan eqConfigured(final KsqlPlan plan) {
+    EasyMock2Adapter.adapt(configuredPlan(equalTo(plan)));
+    return null;
   }
 
   private static <T extends Statement> ConfiguredStatement<T> eqConfigured(
@@ -563,7 +594,9 @@ public class StatementExecutorTest extends EasyMockSupport {
     final DropStream mockDropStream = mockDropStream("foo");
     final PreparedStatement<DropStream> statement = PreparedStatement.of(drop, mockDropStream);
 
-    expect(mockEngine.execute(eqConfigured(statement)))
+    final KsqlPlan plan = Mockito.mock(KsqlPlan.class);
+    expect(mockEngine.plan(eqConfigured(statement))).andReturn(plan);
+    expect(mockEngine.execute(eqConfigured(plan)))
         .andReturn(ExecuteResult.of("SUCCESS"));
     replayAll();
 

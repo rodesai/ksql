@@ -57,11 +57,7 @@ class StreamPublisher implements Flow.Publisher<Collection<StreamedRow>> {
   @SuppressWarnings("ConstantConditions")
   @Override
   public synchronized void subscribe(final Flow.Subscriber<Collection<StreamedRow>> subscriber) {
-    final TransientQueryMetadata queryMetadata =
-        (TransientQueryMetadata) ksqlEngine.execute(serviceContext, query)
-            .getQuery()
-            .get();
-
+    final TransientQueryMetadata queryMetadata = ksqlEngine.executeQuery(serviceContext, query);
     final StreamSubscription subscription = new StreamSubscription(subscriber, queryMetadata);
 
     log.info("Running query {}", queryMetadata.getQueryApplicationId());

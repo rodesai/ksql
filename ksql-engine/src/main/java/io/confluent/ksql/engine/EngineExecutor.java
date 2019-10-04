@@ -99,13 +99,6 @@ final class EngineExecutor {
     return new EngineExecutor(engineContext, serviceContext, ksqlConfig, overriddenProperties);
   }
 
-  ExecuteResult execute(final ConfiguredStatement<?> statement) {
-    if (statement.getStatement() instanceof Query) {
-      return ExecuteResult.of(executeQuery(statement.cast()));
-    }
-    return execute(plan(statement));
-  }
-
   ExecuteResult execute(final KsqlPlan plan) {
     final Optional<String> ddlResult = plan.getDdlCommand().map(ddl -> executeDDL(plan));
     final Optional<PersistentQueryMetadata> queryMetadata =

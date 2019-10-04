@@ -256,14 +256,15 @@ public class StandaloneExecutorTest {
     when(ksqlEngine.prepare(PARSED_STMT_0)).thenReturn((PreparedStatement) PREPARED_STMT_0);
     when(ksqlEngine.prepare(PARSED_STMT_1)).thenReturn((PreparedStatement) PREPARED_STMT_1);
 
-    when(ksqlEngine.execute(any())).thenReturn(ExecuteResult.of(persistentQuery));
+    when(ksqlEngine.execute(any(ConfiguredStatement.class)))
+        .thenReturn(ExecuteResult.of(persistentQuery));
 
     when(ksqlEngine.createSandbox(any())).thenReturn(sandBox);
 
     when(sandBox.prepare(PARSED_STMT_0)).thenReturn((PreparedStatement) PREPARED_STMT_0);
     when(sandBox.prepare(PARSED_STMT_1)).thenReturn((PreparedStatement) PREPARED_STMT_1);
 
-    when(sandBox.execute(any())).thenReturn(ExecuteResult.of("success"));
+    when(sandBox.execute(any(ConfiguredStatement.class))).thenReturn(ExecuteResult.of("success"));
     when(sandBox.execute(CSAS_CFG_WITH_TOPIC))
         .thenReturn(ExecuteResult.of(persistentQuery));
 
@@ -569,7 +570,7 @@ public class StandaloneExecutorTest {
     // Given:
     givenFileContainsAPersistentQuery();
 
-    when(sandBox.execute(any()))
+    when(sandBox.execute(any(ConfiguredStatement.class)))
         .thenReturn(ExecuteResult.of("well, this is unexpected."));
 
     expectedException.expect(KsqlException.class);
@@ -584,7 +585,7 @@ public class StandaloneExecutorTest {
     // Given:
     givenFileContainsAPersistentQuery();
 
-    when(sandBox.execute(any()))
+    when(sandBox.execute(any(ConfiguredStatement.class)))
         .thenReturn(ExecuteResult.of(nonPersistentQueryMd));
 
     expectedException.expect(KsqlException.class);
@@ -606,7 +607,7 @@ public class StandaloneExecutorTest {
   @Test(expected = RuntimeException.class)
   public void shouldThrowIfExecuteThrows() {
     // Given:
-    when(ksqlEngine.execute(any())).thenThrow(new RuntimeException("Boom!"));
+    when(ksqlEngine.execute(any(ConfiguredStatement.class))).thenThrow(new RuntimeException("Boom!"));
 
     // When:
     standaloneExecutor.start();
@@ -646,7 +647,8 @@ public class StandaloneExecutorTest {
   public void shouldNotStartValidationPhaseQueries() {
     // Given:
     givenFileContainsAPersistentQuery();
-    when(sandBox.execute(any())).thenReturn(ExecuteResult.of(sandBoxQuery));
+    when(sandBox.execute(any(ConfiguredStatement.class)))
+        .thenReturn(ExecuteResult.of(sandBoxQuery));
 
     // When:
     standaloneExecutor.start();
