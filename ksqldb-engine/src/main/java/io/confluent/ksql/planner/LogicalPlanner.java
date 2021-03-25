@@ -294,7 +294,8 @@ public class LogicalPlanner {
     return new KsqlTopic(
         newTopic.getTopicName(),
         KeyFormat.of(keyFormat, keyFeatures, newTopic.getWindowInfo()),
-        ValueFormat.of(newTopic.getValueFormat(), valFeatures)
+        ValueFormat.of(newTopic.getValueFormat(), valFeatures),
+        newTopic.getPartitions()
     );
   }
 

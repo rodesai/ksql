@@ -39,4 +39,10 @@ public interface QueryValidator {
       PhysicalPlan physicalPlan,
       Collection<QueryMetadata> runningQueries
   );
+
+  void register(final QueryMetadata query);
+
+  void unregister(final QueryMetadata query);
+
+  void createSandbox();
 }

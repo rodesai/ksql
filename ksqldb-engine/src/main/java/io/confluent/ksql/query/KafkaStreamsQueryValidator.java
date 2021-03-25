@@ -15,7 +15,11 @@
 package io.confluent.ksql.query;
 
 import io.confluent.ksql.config.SessionConfig;
+import io.confluent.ksql.metastore.MetaStore;
+import io.confluent.ksql.name.SourceName;
 import io.confluent.ksql.physical.PhysicalPlan;
+import io.confluent.ksql.services.KafkaTopicClient;
+import io.confluent.ksql.services.ServiceContext;
 import io.confluent.ksql.util.KsqlConfig;
 import io.confluent.ksql.util.KsqlException;
 import io.confluent.ksql.util.PersistentQueryMetadata;
@@ -24,15 +28,31 @@ import io.confluent.ksql.util.TransientQueryMetadata;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.TopologyDescription;
+import org.apache.kafka.streams.TopologyDescription.Processor;
 
 public class KafkaStreamsQueryValidator implements QueryValidator {
+  private final ServiceContext serviceContext;
+  private final MetaStore metaStore;
+
+  public KafkaStreamsQueryValidator(
+      final ServiceContext serviceContext,
+      final MetaStore metaStore
+  ) {
+    this.serviceContext = Objects.requireNonNull(serviceContext, "serviceContext");
+    this.metaStore = Objects.requireNonNull(metaStore, "metaStore");
+  }
+
   @Override
   public void validateQuery(
       final SessionConfig config,
       final PhysicalPlan physicalPlan,
-      final Collection<QueryMetadata> runningQueries
+      final Collection<QueryMetadata> runningQueries,
   ) {
     validateCacheBytesUsage(
         runningQueries.stream()
@@ -58,6 +78,14 @@ public class KafkaStreamsQueryValidator implements QueryValidator {
         config.getConfig(false)
             .getLong(KsqlConfig.KSQL_TOTAL_CACHE_MAX_BYTES_BUFFERING_TRANSIENT)
     );
+  }
+
+  private void validateMaxStateStores(
+      final Collection<QueryMetadata> running,
+      final SessionConfig config,
+      final int limit
+  ) {
+
   }
 
   private void validateCacheBytesUsage(
@@ -93,5 +121,25 @@ public class KafkaStreamsQueryValidator implements QueryValidator {
     properties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "dummy.bootstrap");
     properties.putAll(config.getConfig(true).getKsqlStreamConfigProps());
     return new StreamsConfig(properties);
+  }
+
+  private int estimateNumStoreInstancesForQuery(final QueryMetadata query) {
+    final TopologyDescription topologyDescription = query.getTopology().describe();
+    final Set<String> stores = topologyDescription.subtopologies().stream()
+        .flatMap(s -> s.nodes().stream())
+        .filter(n -> n instanceof Processor)
+        .flatMap(n -> ((Processor) n).stores().stream())
+        .collect(Collectors.toSet());
+    final int partitions = query.getSourceNames().stream()
+        .mapToInt(this::partitionsForSource)
+        .max()
+        .orElseThrow(() -> new IllegalStateException("query must have at least one source"));
+    return partitions * stores.size();
+  }
+
+  private int partitionsForSource(final SourceName name) {
+    final KafkaTopicClient c = serviceContext.getTopicClient();
+    TopicDescription desc = c.describeTopic(metaStore.getSource(name).getKafkaTopicName());
+    return desc.partitions().size();
   }
 }

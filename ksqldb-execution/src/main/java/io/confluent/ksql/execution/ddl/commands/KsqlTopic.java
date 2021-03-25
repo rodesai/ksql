@@ -25,17 +25,24 @@ import java.util.Objects;
 @Immutable
 public class KsqlTopic {
   private final String kafkaTopicName;
+  private final int partitions;
   private final KeyFormat keyFormat;
   private final ValueFormat valueFormat;
 
   public KsqlTopic(
       final String kafkaTopicName,
       final KeyFormat keyFormat,
-      final ValueFormat valueFormat
+      final ValueFormat valueFormat,
+      final int partitions
   ) {
     this.kafkaTopicName = requireNonNull(kafkaTopicName, "kafkaTopicName");
     this.keyFormat = requireNonNull(keyFormat, "keyFormat");
     this.valueFormat = requireNonNull(valueFormat, "valueFormat");
+    this.partitions = partitions;
+  }
+
+  public int getPartitions() {
+    return partitions;
   }
 
   public KeyFormat getKeyFormat() {
