@@ -22,6 +22,7 @@ import io.confluent.ksql.config.SessionConfig;
 import io.confluent.ksql.engine.QueryEventListener;
 import io.confluent.ksql.execution.plan.ExecutionStep;
 import io.confluent.ksql.function.FunctionRegistry;
+import io.confluent.ksql.internal.CsuMetricsReportingListener;
 import io.confluent.ksql.logging.processing.ProcessingLogContext;
 import io.confluent.ksql.metastore.MetaStore;
 import io.confluent.ksql.metastore.model.DataSource;
@@ -284,8 +285,11 @@ public class QueryRegistryImpl implements QueryRegistry {
       }
     }
     allLiveQueries.add(query);
+    // For the CSU metrics we need to have initialized first. It seems like initialize could throw errors though
+    // so we probably want to notify the other listeners first
     notifyCreate(serviceContext, metaStore, query);
     query.initialize();
+    notifyCSUCreate(serviceContext, metaStore, query);
   }
 
   private void unregisterQuery(final QueryMetadata query) {
@@ -319,7 +323,22 @@ public class QueryRegistryImpl implements QueryRegistry {
       final ServiceContext serviceContext,
       final MetaStore metaStore,
       final QueryMetadata queryMetadata) {
-    this.eventListeners.forEach(l -> l.onCreate(serviceContext, metaStore, queryMetadata));
+    this.eventListeners.forEach(l -> {
+      if(!(l instanceof CsuMetricsReportingListener)) {
+        l.onCreate(serviceContext, metaStore, queryMetadata);
+      }
+    });
+  }
+
+  private void notifyCSUCreate(
+          final ServiceContext serviceContext,
+          final MetaStore metaStore,
+          final QueryMetadata queryMetadata) {
+    this.eventListeners.forEach(l -> {
+      if(l instanceof CsuMetricsReportingListener) {
+        l.onCreate(serviceContext, metaStore, queryMetadata);
+      }
+    });
   }
 
   private void notifyDeregister(final QueryMetadata queryMetadata) {

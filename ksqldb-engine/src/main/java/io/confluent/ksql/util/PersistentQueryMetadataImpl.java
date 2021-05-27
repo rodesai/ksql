@@ -27,7 +27,6 @@ import io.confluent.ksql.execution.streams.materialization.MaterializationProvid
 import io.confluent.ksql.logging.processing.ProcessingLogger;
 import io.confluent.ksql.metastore.model.DataSource;
 import io.confluent.ksql.metastore.model.DataSource.DataSourceType;
-import io.confluent.ksql.metrics.CsuMetricCollector;
 import io.confluent.ksql.name.SourceName;
 import io.confluent.ksql.physical.scalablepush.ScalablePushRegistry;
 import io.confluent.ksql.query.KafkaStreamsBuilder;
@@ -37,13 +36,11 @@ import io.confluent.ksql.query.QueryId;
 import io.confluent.ksql.schema.ksql.PhysicalSchema;
 import io.confluent.ksql.schema.query.QuerySchemas;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.Topology;
